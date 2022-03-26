@@ -20,20 +20,10 @@ use cw20_base::state::TokenInfo;
 pub fn update_config(
     deps: DepsMut,
     mut current_config: Config,
-    nasset_token_addr: Option<String>,
-    auto_nasset_token_addr: Option<String>,
     psi_token_addr: Option<String>,
     psi_to_nasset_pair_addr: Option<String>,
     nasset_token_rewards_addr: Option<String>,
 ) -> StdResult<Response> {
-    if let Some(ref nasset_token_addr) = nasset_token_addr {
-        current_config.nasset_token = deps.api.addr_validate(nasset_token_addr)?;
-    }
-
-    if let Some(ref auto_nasset_token_addr) = auto_nasset_token_addr {
-        current_config.auto_nasset_token = deps.api.addr_validate(auto_nasset_token_addr)?;
-    }
-
     if let Some(ref psi_token_addr) = psi_token_addr {
         current_config.psi_token = deps.api.addr_validate(psi_token_addr)?;
     }

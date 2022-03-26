@@ -181,16 +181,12 @@ pub fn execute(deps: DepsMut, env: Env, info: MessageInfo, msg: ExecuteMsg) -> S
 
             match governance_msg {
                 GovernanceMsg::UpdateConfig {
-                    nasset_token_addr,
-                    auto_nasset_token_addr,
                     psi_token_addr,
                     psi_to_nasset_pair_addr,
                     nasset_token_rewards_addr,
                 } => commands::update_config(
                     deps,
                     config,
-                    nasset_token_addr,
-                    auto_nasset_token_addr,
                     psi_token_addr,
                     psi_to_nasset_pair_addr,
                     nasset_token_rewards_addr,

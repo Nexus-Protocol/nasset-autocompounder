@@ -7,8 +7,9 @@ pub mod msg;
 mod reply_response;
 pub mod state;
 
-// #[cfg(test)]
-// mod tests;
+#[cfg(test)]
+#[allow(dead_code)]
+mod tests;
 
 pub const MIN_PSI_REWARDS_TO_CLAIM: u64 = 1_000_000_000u64;
 

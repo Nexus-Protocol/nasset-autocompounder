@@ -7,7 +7,6 @@ use cw20::Cw20ReceiveMsg;
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct InstantiateMsg {
     pub nasset_token_addr: String,
-    pub auto_nasset_token_addr: String,
     pub psi_token_addr: String,
     pub psi_to_nasset_pair_addr: String,
     pub governance_contract_addr: String,
@@ -29,8 +28,6 @@ pub enum ExecuteMsg {
 #[serde(rename_all = "snake_case")]
 pub enum GovernanceMsg {
     UpdateConfig {
-        nasset_token_addr: Option<String>,
-        auto_nasset_token_addr: Option<String>,
         psi_token_addr: Option<String>,
         psi_to_nasset_pair_addr: Option<String>,
         nasset_token_rewards_addr: Option<String>,
