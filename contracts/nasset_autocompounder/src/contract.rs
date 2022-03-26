@@ -3,14 +3,22 @@ use cosmwasm_std::{
     Response, StdError, StdResult, SubMsg, WasmMsg,
 };
 
-use crate::msg::{ConfigResponse, ExecuteMsg, GovernanceMsg, InstantiateMsg, MigrateMsg, QueryMsg};
+use crate::msg::{
+    AstroportCw20HookMsg, ConfigResponse, ExecuteMsg, GovernanceMsg, InstantiateMsg, MigrateMsg,
+    QueryMsg,
+};
 use crate::reply_response::MsgInstantiateContractResponse;
 use crate::state::Config;
 use crate::{
     commands,
-    state::{load_config, set_auto_nasset_token_addr, store_config},
+    state::{
+        load_config, load_withdraw_action, remove_withdraw_action, set_auto_nasset_token_addr,
+        store_config,
+    },
     SubmsgIds,
 };
+use cosmwasm_bignumber::{Decimal256, Uint256};
+use cw20::Cw20ExecuteMsg;
 use cw20::MinterResponse;
 use cw20_base::msg::InstantiateMsg as Cw20InstantiateMsg;
 use protobuf::Message;
@@ -25,9 +33,11 @@ pub fn instantiate(
 ) -> StdResult<Response> {
     let config = Config {
         nasset_token: deps.api.addr_validate(&msg.nasset_token_addr)?,
-        spec_nasset_farm: deps.api.addr_validate(&msg.spec_nasset_farm_addr)?,
-        governance_contract: deps.api.addr_validate(&msg.governance_contract_addr)?,
         auto_nasset_token: Addr::unchecked(""),
+        psi_token: deps.api.addr_validate(&msg.psi_token_addr)?,
+        psi_to_nasset_pair: deps.api.addr_validate(&msg.psi_to_nasset_pair_addr)?,
+        governance_contract: deps.api.addr_validate(&msg.governance_contract_addr)?,
+        nasset_token_rewards: deps.api.addr_validate(&msg.nasset_token_rewards_addr)?,
     };
     store_config(deps.storage, &config)?;
 
@@ -57,7 +67,7 @@ pub fn instantiate(
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
-pub fn reply(deps: DepsMut, _env: Env, msg: Reply) -> StdResult<Response> {
+pub fn reply(deps: DepsMut, env: Env, msg: Reply) -> StdResult<Response> {
     let submessage_enum = SubmsgIds::try_from(msg.id)?;
     match submessage_enum {
         SubmsgIds::InitANAsset => {
@@ -75,6 +85,83 @@ pub fn reply(deps: DepsMut, _env: Env, msg: Reply) -> StdResult<Response> {
                 ("auto_nasset_token_addr", auto_nasset_token_addr),
             ]))
         }
+
+        SubmsgIds::PsiClaimed => {
+            let config = load_config(deps.storage)?;
+            let psi_balance = commands::query_token_balance(
+                deps.as_ref(),
+                &config.psi_token,
+                &env.contract.address,
+            );
+
+            Ok(Response::new().add_submessage(SubMsg::reply_on_success(
+                WasmMsg::Execute {
+                    contract_addr: config.psi_token.to_string(),
+                    msg: to_binary(&Cw20ExecuteMsg::Send {
+                        amount: psi_balance,
+                        contract: config.psi_to_nasset_pair.to_string(),
+                        msg: to_binary(&AstroportCw20HookMsg::Swap {
+                            belief_price: None,
+                            max_spread: None,
+                            to: None,
+                        })?,
+                    })?,
+                    funds: vec![],
+                },
+                SubmsgIds::PsiSold.id(),
+            )))
+        }
+
+        SubmsgIds::PsiSold => {
+            let config = load_config(deps.storage)?;
+            if let Some(withdraw_action) = load_withdraw_action(deps.storage)? {
+                remove_withdraw_action(deps.storage)?;
+
+                let nasset_balance: Uint256 = commands::query_token_balance(
+                    deps.as_ref(),
+                    &config.nasset_token,
+                    &env.contract.address,
+                )
+                .into();
+
+                let auto_nasset_supply: Uint256 =
+                    commands::query_supply(&deps.querier, &config.auto_nasset_token.clone())?
+                        .into();
+
+                let nasset_to_withdraw: Uint256 = nasset_balance
+                    * Uint256::from(withdraw_action.auto_nasset_amount)
+                    / Decimal256::from_uint256(Uint256::from(auto_nasset_supply));
+
+                //0. send nasset to farmer
+                //1. burn anasset
+                Ok(Response::new()
+                    .add_message(CosmosMsg::Wasm(WasmMsg::Execute {
+                        contract_addr: config.nasset_token.to_string(),
+                        msg: to_binary(&Cw20ExecuteMsg::Transfer {
+                            recipient: withdraw_action.farmer.to_string(),
+                            amount: nasset_to_withdraw.into(),
+                        })?,
+                        funds: vec![],
+                    }))
+                    .add_message(CosmosMsg::Wasm(WasmMsg::Execute {
+                        contract_addr: config.nasset_token.to_string(),
+                        msg: to_binary(&Cw20ExecuteMsg::Burn {
+                            amount: withdraw_action.auto_nasset_amount,
+                        })?,
+                        funds: vec![],
+                    }))
+                    .add_attributes(vec![
+                        ("action", "withdraw"),
+                        ("auto_nasset_amount_burned", &nasset_to_withdraw.to_string()),
+                        (
+                            "nasset_amount_withdrawed",
+                            &withdraw_action.auto_nasset_amount.to_string(),
+                        ),
+                    ]))
+            } else {
+                Ok(Response::new())
+            }
+        }
     }
 }
 
@@ -82,6 +169,9 @@ pub fn reply(deps: DepsMut, _env: Env, msg: Reply) -> StdResult<Response> {
 pub fn execute(deps: DepsMut, env: Env, info: MessageInfo, msg: ExecuteMsg) -> StdResult<Response> {
     match msg {
         ExecuteMsg::Receive(msg) => commands::receive_cw20(deps, env, info, msg),
+        ExecuteMsg::Compound {} => commands::compound(deps, env, info),
+
+        ExecuteMsg::AcceptGovernance {} => commands::accept_governance(deps, env, info),
 
         ExecuteMsg::Governance { governance_msg } => {
             let config: Config = load_config(deps.storage)?;
@@ -130,7 +220,7 @@ pub fn execute(deps: DepsMut, env: Env, info: MessageInfo, msg: ExecuteMsg) -> S
 }
 
 #[entry_point]
-pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
+pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
     match msg {
         QueryMsg::Config {} => to_binary(&query_config(deps)?),
         //TODO
@@ -145,6 +235,6 @@ pub fn query_config(deps: Deps) -> StdResult<ConfigResponse> {
 }
 
 #[entry_point]
-pub fn migrate(deps: DepsMut, _env: Env, _msg: MigrateMsg) -> StdResult<Response> {
+pub fn migrate(_deps: DepsMut, _env: Env, _msg: MigrateMsg) -> StdResult<Response> {
     Ok(Response::default())
 }

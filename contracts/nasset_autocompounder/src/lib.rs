@@ -10,10 +10,12 @@ pub mod state;
 // #[cfg(test)]
 // mod tests;
 
-pub const MIN_SPEC_REWARDS_TO_CLAIM: u64 = 1_000_000_000u64;
+pub const MIN_PSI_REWARDS_TO_CLAIM: u64 = 1_000_000_000u64;
 
 pub enum SubmsgIds {
     InitANAsset,
+    PsiClaimed,
+    PsiSold,
 }
 
 impl TryFrom<u64> for SubmsgIds {
@@ -22,6 +24,8 @@ impl TryFrom<u64> for SubmsgIds {
     fn try_from(v: u64) -> Result<Self, Self::Error> {
         match v {
             x if x == SubmsgIds::InitANAsset.id() => Ok(SubmsgIds::InitANAsset),
+            x if x == SubmsgIds::PsiClaimed.id() => Ok(SubmsgIds::PsiClaimed),
+            x if x == SubmsgIds::PsiSold.id() => Ok(SubmsgIds::PsiSold),
             unknown => Err(StdError::generic_err(format!(
                 "unknown reply message id: {}",
                 unknown
@@ -34,6 +38,8 @@ impl SubmsgIds {
     pub const fn id(&self) -> u64 {
         match self {
             SubmsgIds::InitANAsset => 0,
+            SubmsgIds::PsiClaimed => 1,
+            SubmsgIds::PsiSold => 2,
         }
     }
 }

@@ -1,18 +1,16 @@
 use crate::{
     commands, concat,
-    msg::{
-        Cw20HookMsg, SpecNassetFarmCw20Msg, SpecNassetFarmMsg, SpecNassetFarmQueryMsg,
-        SpecNassetFarmRewardInfoResponse,
-    },
+    msg::{Cw20HookMsg, NAssetTokenRewardsAnyoneMsg, NAssetTokenRewardsExecuteMsg},
     state::{
-        load_config, load_gov_update, remove_gov_update, store_config, store_gov_update, Config,
-        GovernanceUpdateState,
+        load_config, load_gov_update, remove_gov_update, store_config, store_gov_update,
+        store_withdraw_action, Config, GovernanceUpdateState, WithdrawAction,
     },
+    SubmsgIds,
 };
 use cosmwasm_bignumber::{Decimal256, Uint256};
 use cosmwasm_std::{
-    from_binary, to_binary, Addr, Binary, BlockInfo, CosmosMsg, Decimal, Deps, DepsMut, Env,
-    MessageInfo, QuerierWrapper, QueryRequest, Response, StdError, StdResult, Uint128, WasmMsg,
+    from_binary, to_binary, Addr, Binary, BlockInfo, CosmosMsg, Deps, DepsMut, Env, MessageInfo,
+    QuerierWrapper, QueryRequest, Response, StdError, StdResult, SubMsg, Uint128, WasmMsg,
     WasmQuery,
 };
 use cosmwasm_storage::to_length_prefixed;
@@ -119,28 +117,10 @@ pub fn deposit_nasset(
     let auto_nasset_supply: Uint256 =
         query_supply(&deps.querier, &config.auto_nasset_token.clone())?.into();
 
-    let nasset_in_autocompounder = get_nasset_in_autocompounder(
-        deps.as_ref(),
-        &config.nasset_token,
-        &config.spec_nasset_farm,
-        &env.contract.address,
-    )?;
+    let nasset_balance: Uint256 =
+        query_token_balance(deps.as_ref(), &config.nasset_token, &env.contract.address).into();
 
-    if nasset_in_autocompounder.is_zero() && !auto_nasset_supply.is_zero() {
-        //read comments in 'withdraw_nasset' function for a reason to return error here
-        return Err(StdError::generic_err(
-            "nAsset balance is zero, but anAsset supply is not! Freeze contract.",
-        ));
-    }
-
-    // nasset balance in cw20 contract
-    // it should be equal to 'deposit_amout',
-    // unless someone directly transfer cw20 tokens to this contract without calling 'Deposit'
-    let nasset_in_contract_address =
-        query_token_balance(deps.as_ref(), &config.nasset_token, &env.contract.address);
-
-    let nasset_balance: Uint256 = nasset_in_autocompounder + nasset_in_contract_address.into();
-    let is_first_depositor = deposit_amount == nasset_balance;
+    let is_first_depositor = auto_nasset_supply.is_zero();
 
     // anAsset tokens to mint:
     // user_share = (deposited_nasset / total_nasset)
@@ -153,33 +133,18 @@ pub fn deposit_nasset(
             / Decimal256::from_uint256(nasset_balance - deposit_amount)
     };
 
-    //0. send nasset to autocompounder
-    //1. mint auto_nasset
+    //0. mint auto_nasset
     Ok(Response::new()
-        .add_messages(vec![
-            WasmMsg::Execute {
-                contract_addr: config.nasset_token.to_string(),
-                msg: to_binary(&Cw20ExecuteMsg::Send {
-                    contract: config.spec_nasset_farm.to_string(),
-                    amount: nasset_in_contract_address.into(),
-                    msg: to_binary(&SpecNassetFarmCw20Msg::bond {
-                        staker_addr: None,
-                        compound_rate: Some(Decimal::one()),
-                    })?,
-                })?,
-                funds: vec![],
-            },
-            WasmMsg::Execute {
-                contract_addr: config.auto_nasset_token.to_string(),
-                msg: to_binary(&Cw20ExecuteMsg::Mint {
-                    recipient: farmer.to_string(),
-                    amount: auto_nasset_to_mint.into(),
-                })?,
-                funds: vec![],
-            },
-        ])
+        .add_message(WasmMsg::Execute {
+            contract_addr: config.auto_nasset_token.to_string(),
+            msg: to_binary(&Cw20ExecuteMsg::Mint {
+                recipient: farmer.to_string(),
+                amount: auto_nasset_to_mint.into(),
+            })?,
+            funds: vec![],
+        })
         .add_attributes(vec![
-            ("action", "deposit_basset"),
+            ("action", "deposit_nasset"),
             ("farmer", &farmer.to_string()),
             ("amount", &deposit_amount.to_string()),
         ]))
@@ -201,106 +166,54 @@ pub fn receive_cw20_withdraw(
     //we trust cw20 contract
     let farmer_addr: Addr = Addr::unchecked(cw20_msg.sender);
 
-    withdraw_nasset(deps, env, config, farmer_addr, cw20_msg.amount.into())
+    withdraw_nasset(deps, env, config, farmer_addr, cw20_msg.amount)
 }
 
 pub fn withdraw_nasset(
     deps: DepsMut,
-    env: Env,
+    _env: Env,
     config: Config,
     farmer: Addr,
-    auto_nasset_to_withdraw_amount: Uint256,
+    auto_nasset_to_withdraw_amount: Uint128,
 ) -> StdResult<Response> {
     //auto_nasset_to_withdraw_amount is not zero here, cw20 contract check it
-
-    //nasset_in_contract_address is always zero (except Deposit stage)
-    let nasset_in_autocompounder = get_nasset_in_autocompounder(
-        deps.as_ref(),
-        &config.nasset_token,
-        &config.spec_nasset_farm,
-        &env.contract.address,
+    store_withdraw_action(
+        deps.storage,
+        WithdrawAction {
+            farmer,
+            auto_nasset_amount: auto_nasset_to_withdraw_amount,
+        },
     )?;
 
-    let auto_nasset_supply: Uint256 =
-        query_supply(&deps.querier, &config.auto_nasset_token.clone())?.into();
-
-    if nasset_in_autocompounder.is_zero() {
-        //interesting case - user owns some anAsset, but nAsset balance is zero
-        //what we can do here:
-        //1. Burn his anAsset, cause they do not have value in that context
-        //2. return error. In that case if someone will deposit nAsset those anAsset owners will
-        //   own share of his tokens. But I prevent deposists in that case, so contract is kinds "frozen" -
-        //   no withdraw and deposits available when nAsset balance is zero. Looks like the best
-        //   solution.
-        //3. Burn all anAsset supply (not possible with cw20 messages)
-        //
-        //Second choice is best one in my opinion.
-        return Err(StdError::generic_err(
-            "nAsset balance is zero, but anAsset supply is not! Freeze contract.",
-        ));
-    }
-
-    let nasset_to_withdraw: Uint256 = nasset_in_autocompounder * auto_nasset_to_withdraw_amount
-        / Decimal256::from_uint256(Uint256::from(auto_nasset_supply));
-
-    //TODO: claim SPEC rewards before withdrawing
-    //do it with Reply logic
-
-    //0. withdraw nasset from autocompounder
-    //1. send nasset to farmer
-    //2. burn anasset
-    Ok(Response::new()
-        .add_message(CosmosMsg::Wasm(WasmMsg::Execute {
-            contract_addr: config.spec_nasset_farm.to_string(),
-            msg: to_binary(&SpecNassetFarmMsg::unbond {
-                asset_token: config.nasset_token.to_string(),
-                amount: nasset_to_withdraw.into(),
-            })?,
-            funds: vec![],
-        }))
-        .add_message(CosmosMsg::Wasm(WasmMsg::Execute {
-            contract_addr: config.nasset_token.to_string(),
-            msg: to_binary(&Cw20ExecuteMsg::Transfer {
-                recipient: farmer.to_string(),
-                amount: nasset_to_withdraw.into(),
-            })?,
-            funds: vec![],
-        }))
-        .add_message(CosmosMsg::Wasm(WasmMsg::Execute {
-            contract_addr: config.nasset_token.to_string(),
-            msg: to_binary(&Cw20ExecuteMsg::Burn {
-                amount: auto_nasset_to_withdraw_amount.into(),
-            })?,
-            funds: vec![],
-        }))
-        .add_attributes(vec![
-            ("action", "withdraw"),
-            ("nasset_amount", &auto_nasset_to_withdraw_amount.to_string()),
-        ]))
+    return Ok(Response::new()
+        .add_submessage(SubMsg::reply_on_success(
+            CosmosMsg::Wasm(WasmMsg::Execute {
+                contract_addr: config.nasset_token_rewards.to_string(),
+                msg: to_binary(&NAssetTokenRewardsExecuteMsg::Anyone {
+                    anyone_msg: NAssetTokenRewardsAnyoneMsg::ClaimRewards { recipient: None },
+                })?,
+                funds: vec![],
+            }),
+            SubmsgIds::PsiClaimed.id(),
+        ))
+        .add_attributes(vec![("action", "claim_psi")]));
 }
 
-pub fn get_nasset_in_autocompounder(
-    deps: Deps,
-    nasset_token: &Addr,
-    spec_nasset_farm: &Addr,
-    account_addr: &Addr,
-) -> StdResult<Uint256> {
-    let reward_infos: SpecNassetFarmRewardInfoResponse =
-        deps.querier.query(&QueryRequest::Wasm(WasmQuery::Smart {
-            contract_addr: spec_nasset_farm.to_string(),
-            msg: to_binary(&SpecNassetFarmQueryMsg::reward_info {
-                staker_addr: account_addr.to_string(),
-            })?,
-        }))?;
+pub fn compound(deps: DepsMut, _env: Env, _info: MessageInfo) -> StdResult<Response> {
+    let config: Config = load_config(deps.storage)?;
 
-    let rewards: Vec<Uint256> = reward_infos
-        .reward_infos
-        .into_iter()
-        .filter(|reward| reward.asset_token == nasset_token.to_string())
-        .map(|reward| reward.bond_amount.into())
-        .collect();
-
-    Ok(*rewards.first().unwrap_or(&Uint256::zero()))
+    return Ok(Response::new()
+        .add_submessage(SubMsg::reply_on_success(
+            CosmosMsg::Wasm(WasmMsg::Execute {
+                contract_addr: config.nasset_token_rewards.to_string(),
+                msg: to_binary(&NAssetTokenRewardsExecuteMsg::Anyone {
+                    anyone_msg: NAssetTokenRewardsAnyoneMsg::ClaimRewards { recipient: None },
+                })?,
+                funds: vec![],
+            }),
+            SubmsgIds::PsiClaimed.id(),
+        ))
+        .add_attributes(vec![("action", "claim_psi")]));
 }
 
 fn get_time(block: &BlockInfo) -> u64 {
