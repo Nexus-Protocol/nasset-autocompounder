@@ -20,18 +20,34 @@ use cw20_base::state::TokenInfo;
 pub fn update_config(
     deps: DepsMut,
     mut current_config: Config,
-    psi_distributor_addr: Option<String>,
-    anchor_overseer_contract_addr: Option<String>,
-    anchor_market_contract_addr: Option<String>,
-    anchor_custody_basset_contract_addr: Option<String>,
-    anc_stable_swap_contract_addr: Option<String>,
-    psi_stable_swap_contract_addr: Option<String>,
-    basset_vault_strategy_contract_addr: Option<String>,
-    claiming_rewards_delay: Option<u64>,
-    over_loan_balance_value: Option<Decimal256>,
+    nasset_token_addr: Option<String>,
+    auto_nasset_token_addr: Option<String>,
+    psi_token_addr: Option<String>,
+    psi_to_nasset_pair_addr: Option<String>,
+    nasset_token_rewards_addr: Option<String>,
 ) -> StdResult<Response> {
-    //TODO
-    Ok(Response::new())
+    if let Some(ref nasset_token_addr) = nasset_token_addr {
+        current_config.nasset_token = deps.api.addr_validate(nasset_token_addr)?;
+    }
+
+    if let Some(ref auto_nasset_token_addr) = auto_nasset_token_addr {
+        current_config.auto_nasset_token = deps.api.addr_validate(auto_nasset_token_addr)?;
+    }
+
+    if let Some(ref psi_token_addr) = psi_token_addr {
+        current_config.psi_token = deps.api.addr_validate(psi_token_addr)?;
+    }
+
+    if let Some(ref psi_to_nasset_pair_addr) = psi_to_nasset_pair_addr {
+        current_config.psi_to_nasset_pair = deps.api.addr_validate(psi_to_nasset_pair_addr)?;
+    }
+
+    if let Some(ref nasset_token_rewards_addr) = nasset_token_rewards_addr {
+        current_config.nasset_token_rewards = deps.api.addr_validate(nasset_token_rewards_addr)?;
+    }
+
+    store_config(deps.storage, &current_config)?;
+    Ok(Response::default())
 }
 
 pub fn update_governance_addr(

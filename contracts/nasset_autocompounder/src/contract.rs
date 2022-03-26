@@ -1,11 +1,11 @@
 use cosmwasm_std::{
     entry_point, to_binary, Addr, Binary, CosmosMsg, Deps, DepsMut, Env, MessageInfo, Reply,
-    Response, StdError, StdResult, SubMsg, WasmMsg,
+    Response, StdError, StdResult, SubMsg, Uint128, WasmMsg,
 };
 
 use crate::msg::{
-    AstroportCw20HookMsg, ConfigResponse, ExecuteMsg, GovernanceMsg, InstantiateMsg, MigrateMsg,
-    QueryMsg,
+    AstroportCw20HookMsg, AutoNassetValueResponse, ConfigResponse, ExecuteMsg, GovernanceMsg,
+    InstantiateMsg, MigrateMsg, QueryMsg,
 };
 use crate::reply_response::MsgInstantiateContractResponse;
 use crate::state::Config;
@@ -180,29 +180,20 @@ pub fn execute(deps: DepsMut, env: Env, info: MessageInfo, msg: ExecuteMsg) -> S
             }
 
             match governance_msg {
-                //TODO
                 GovernanceMsg::UpdateConfig {
-                    psi_distributor_addr,
-                    anchor_overseer_contract_addr,
-                    anchor_market_contract_addr,
-                    anchor_custody_basset_contract_addr,
-                    anc_stable_swap_contract_addr,
-                    psi_stable_swap_contract_addr,
-                    basset_vault_strategy_contract_addr,
-                    claiming_rewards_delay,
-                    over_loan_balance_value,
+                    nasset_token_addr,
+                    auto_nasset_token_addr,
+                    psi_token_addr,
+                    psi_to_nasset_pair_addr,
+                    nasset_token_rewards_addr,
                 } => commands::update_config(
                     deps,
                     config,
-                    psi_distributor_addr,
-                    anchor_overseer_contract_addr,
-                    anchor_market_contract_addr,
-                    anchor_custody_basset_contract_addr,
-                    anc_stable_swap_contract_addr,
-                    psi_stable_swap_contract_addr,
-                    basset_vault_strategy_contract_addr,
-                    claiming_rewards_delay,
-                    over_loan_balance_value,
+                    nasset_token_addr,
+                    auto_nasset_token_addr,
+                    psi_token_addr,
+                    psi_to_nasset_pair_addr,
+                    nasset_token_rewards_addr,
                 ),
 
                 GovernanceMsg::UpdateGovernanceContract {
@@ -220,17 +211,45 @@ pub fn execute(deps: DepsMut, env: Env, info: MessageInfo, msg: ExecuteMsg) -> S
 }
 
 #[entry_point]
-pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
+pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
     match msg {
         QueryMsg::Config {} => to_binary(&query_config(deps)?),
-        //TODO
+        QueryMsg::AutoNassetValue { amount } => {
+            to_binary(&query_auto_nasset_value(deps, env, amount)?)
+        }
     }
 }
 
 pub fn query_config(deps: Deps) -> StdResult<ConfigResponse> {
     let config: Config = load_config(deps.storage)?;
     Ok(ConfigResponse {
-        governance_contract: config.governance_contract.to_string(),
+        nasset_token_addr: config.nasset_token.to_string(),
+        auto_nasset_token_addr: config.auto_nasset_token.to_string(),
+        psi_token_addr: config.psi_token.to_string(),
+        psi_to_nasset_pair_addr: config.psi_to_nasset_pair.to_string(),
+        governance_contract_addr: config.governance_contract.to_string(),
+        nasset_token_rewards_addr: config.nasset_token_rewards.to_string(),
+    })
+}
+
+pub fn query_auto_nasset_value(
+    deps: Deps,
+    env: Env,
+    amount: Uint128,
+) -> StdResult<AutoNassetValueResponse> {
+    let config: Config = load_config(deps.storage)?;
+
+    let nasset_balance: Uint256 =
+        commands::query_token_balance(deps, &config.nasset_token, &env.contract.address).into();
+
+    let auto_nasset_supply: Uint256 =
+        commands::query_supply(&deps.querier, &config.auto_nasset_token.clone())?.into();
+
+    let nasset_amount: Uint256 = nasset_balance * Uint256::from(amount)
+        / Decimal256::from_uint256(Uint256::from(auto_nasset_supply));
+
+    Ok(AutoNassetValueResponse {
+        nasset_amount: nasset_amount.into(),
     })
 }
 
