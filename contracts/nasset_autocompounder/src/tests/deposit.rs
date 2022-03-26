@@ -56,7 +56,7 @@ fn deposit_nasset() {
                 contract_addr: AUTO_NASSET_TOKEN_ADDR.to_string(),
                 msg: to_binary(&Cw20ExecuteMsg::Mint {
                     recipient: user_1_address.clone(),
-                    amount: deposit_1_amount.into(), //2B * (6B/8B) / (1 - (6B/8B)) = 6B
+                    amount: deposit_1_amount.into(),
                 })
                 .unwrap(),
                 funds: vec![],
@@ -81,7 +81,7 @@ fn deposit_nasset() {
                 contract_addr: AUTO_NASSET_TOKEN_ADDR.to_string(),
                 msg: to_binary(&Cw20ExecuteMsg::Mint {
                     recipient: user_2_address.clone(),
-                    amount: deposit_2_amount.into(), //2B * (6B/8B) / (1 - (6B/8B)) = 6B
+                    amount: deposit_2_amount.into(),
                 })
                 .unwrap(),
                 funds: vec![],

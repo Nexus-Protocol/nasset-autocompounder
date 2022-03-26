@@ -16,5 +16,5 @@ use sdk::Sdk;
 
 #[test]
 fn proper_initialization() {
-    let sdk = Sdk::init();
+    Sdk::init();
 }

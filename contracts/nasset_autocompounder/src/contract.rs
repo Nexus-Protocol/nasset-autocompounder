@@ -40,6 +40,7 @@ pub fn instantiate(
         nasset_token_rewards: deps.api.addr_validate(&msg.nasset_token_rewards_addr)?,
     };
     store_config(deps.storage, &config)?;
+    remove_withdraw_action(deps.storage)?;
 
     Ok(Response::new().add_submessage(SubMsg::reply_on_success(
         CosmosMsg::Wasm(WasmMsg::Instantiate {
@@ -144,7 +145,7 @@ pub fn reply(deps: DepsMut, env: Env, msg: Reply) -> StdResult<Response> {
                         funds: vec![],
                     }))
                     .add_message(CosmosMsg::Wasm(WasmMsg::Execute {
-                        contract_addr: config.nasset_token.to_string(),
+                        contract_addr: config.auto_nasset_token.to_string(),
                         msg: to_binary(&Cw20ExecuteMsg::Burn {
                             amount: withdraw_action.auto_nasset_amount,
                         })?,
