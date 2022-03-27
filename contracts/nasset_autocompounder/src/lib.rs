@@ -11,8 +11,6 @@ pub mod state;
 #[allow(dead_code)]
 mod tests;
 
-pub const MIN_PSI_REWARDS_TO_CLAIM: u64 = 1_000_000_000u64;
-
 pub enum SubmsgIds {
     InitANAsset,
     PsiClaimed,
