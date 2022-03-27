@@ -2,7 +2,7 @@ use std::env::current_dir;
 use std::fs::create_dir_all;
 
 use cosmwasm_schema::{export_schema, remove_schemas, schema_for};
-use nasset_autocompounder_nasset_autocompounder::msg::{
+use nasset_autocompounder::msg::{
     AutoNassetValueResponse, ConfigResponse, Cw20HookMsg, ExecuteMsg, GovernanceMsg,
     InstantiateMsg, QueryMsg,
 };

@@ -1,5 +1,5 @@
 [package]
-name = "nasset-autocompounder-nasset-autocompounder"
+name = "nasset-autocompounder"
 version = "1.0.0"
 authors = ["Nexus Labs"]
 edition = "2018"
