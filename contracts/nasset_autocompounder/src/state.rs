@@ -1,5 +1,4 @@
 use cw_storage_plus::{Item, Map};
-use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
 use cosmwasm_std::{Addr, StdError, StdResult, Storage, Uint128};
@@ -12,12 +11,6 @@ pub struct Config {
     pub psi_to_nasset_pair: Addr,
     pub governance_contract: Addr,
     pub nasset_token_rewards: Addr,
-}
-
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
-pub struct State {
-    pub total_share: Uint128,
-    pub total_deposit: Uint128,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
@@ -33,7 +26,6 @@ pub struct WithdrawAction {
 }
 
 static KEY_CONFIG: Item<Config> = Item::new("config");
-static KEY_STATE: Item<State> = Item::new("state");
 static KEY_WITHDRAW_ACTION: Item<Option<WithdrawAction>> = Item::new("withdraw_action");
 static USERS_SHARE: Map<&Addr, Uint128> = Map::new("shares");
 
@@ -109,6 +101,6 @@ pub fn store_gov_update(
     KEY_GOVERNANCE_UPDATE.save(storage, gov_update)
 }
 
-pub fn remove_gov_update(storage: &mut dyn Storage) -> () {
+pub fn remove_gov_update(storage: &mut dyn Storage) {
     KEY_GOVERNANCE_UPDATE.remove(storage)
 }

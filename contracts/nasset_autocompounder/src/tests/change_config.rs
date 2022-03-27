@@ -1,12 +1,9 @@
-use std::str::FromStr;
-
 use crate::{
     msg::{ExecuteMsg, GovernanceMsg},
     state::load_config,
 };
 
 use super::sdk::{Sdk, GOVERNANCE_CONTRACT_ADDR};
-use cosmwasm_bignumber::Decimal256;
 use cosmwasm_std::testing::{mock_env, mock_info};
 use cosmwasm_std::StdError;
 

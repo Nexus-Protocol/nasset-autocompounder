@@ -126,12 +126,11 @@ pub fn reply(deps: DepsMut, env: Env, msg: Reply) -> StdResult<Response> {
                 .into();
 
                 let auto_nasset_supply: Uint256 =
-                    commands::query_supply(&deps.querier, &config.auto_nasset_token.clone())?
-                        .into();
+                    commands::query_supply(&deps.querier, &config.auto_nasset_token)?.into();
 
                 let nasset_to_withdraw: Uint256 = nasset_balance
                     * Uint256::from(withdraw_action.auto_nasset_amount)
-                    / Decimal256::from_uint256(Uint256::from(auto_nasset_supply));
+                    / Decimal256::from_uint256(auto_nasset_supply);
 
                 //0. send nasset to farmer
                 //1. burn anasset
@@ -240,10 +239,10 @@ pub fn query_auto_nasset_value(
         commands::query_token_balance(deps, &config.nasset_token, &env.contract.address).into();
 
     let auto_nasset_supply: Uint256 =
-        commands::query_supply(&deps.querier, &config.auto_nasset_token.clone())?.into();
+        commands::query_supply(&deps.querier, &config.auto_nasset_token)?.into();
 
-    let nasset_amount: Uint256 = nasset_balance * Uint256::from(amount)
-        / Decimal256::from_uint256(Uint256::from(auto_nasset_supply));
+    let nasset_amount: Uint256 =
+        nasset_balance * Uint256::from(amount) / Decimal256::from_uint256(auto_nasset_supply);
 
     Ok(AutoNassetValueResponse {
         nasset_amount: nasset_amount.into(),

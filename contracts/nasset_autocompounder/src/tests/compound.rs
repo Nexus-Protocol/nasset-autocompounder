@@ -1,24 +1,8 @@
-use crate::{
-    msg::{
-        AstroportCw20HookMsg, Cw20HookMsg, ExecuteMsg, GovernanceMsg, NAssetTokenRewardsAnyoneMsg,
-        NAssetTokenRewardsExecuteMsg,
-    },
-    state::{load_config, load_gov_update},
-    SubmsgIds,
-};
-
-use super::sdk::{
-    Sdk, AUTO_NASSET_TOKEN_ADDR, NASSET_TOKEN_ADDR, NASSET_TOKEN_REWARDS_ADDR, PSI_TOKEN_ADDR,
-    PSI_TO_NASSET_PAIR_ADDR,
-};
+use super::sdk::{Sdk, AUTO_NASSET_TOKEN_ADDR, NASSET_TOKEN_ADDR};
 
 use cosmwasm_bignumber::Uint256;
-use cosmwasm_std::testing::{mock_env, mock_info};
-use cosmwasm_std::{
-    to_binary, Addr, BlockInfo, CosmosMsg, Reply, StdError, SubMsg, SubMsgExecutionResponse,
-    Uint128, WasmMsg,
-};
-use cw20::{Cw20ExecuteMsg, Cw20ReceiveMsg};
+use cosmwasm_std::{to_binary, CosmosMsg, SubMsg, Uint128, WasmMsg};
+use cw20::Cw20ExecuteMsg;
 
 #[test]
 fn withdraw_compound_withdraw() {

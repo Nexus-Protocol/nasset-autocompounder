@@ -121,7 +121,7 @@ pub fn deposit_nasset(
     deposit_amount: Uint256,
 ) -> StdResult<Response> {
     let auto_nasset_supply: Uint256 =
-        query_supply(&deps.querier, &config.auto_nasset_token.clone())?.into();
+        query_supply(&deps.querier, &config.auto_nasset_token)?.into();
 
     let nasset_balance: Uint256 =
         query_token_balance(deps.as_ref(), &config.nasset_token, &env.contract.address).into();
@@ -191,7 +191,7 @@ pub fn withdraw_nasset(
         },
     )?;
 
-    return Ok(Response::new()
+    Ok(Response::new()
         .add_submessage(SubMsg::reply_on_success(
             CosmosMsg::Wasm(WasmMsg::Execute {
                 contract_addr: config.nasset_token_rewards.to_string(),
@@ -202,13 +202,13 @@ pub fn withdraw_nasset(
             }),
             SubmsgIds::PsiClaimed.id(),
         ))
-        .add_attributes(vec![("action", "claim_psi")]));
+        .add_attributes(vec![("action", "claim_psi")]))
 }
 
 pub fn compound(deps: DepsMut, _env: Env, _info: MessageInfo) -> StdResult<Response> {
     let config: Config = load_config(deps.storage)?;
 
-    return Ok(Response::new()
+    Ok(Response::new()
         .add_submessage(SubMsg::reply_on_success(
             CosmosMsg::Wasm(WasmMsg::Execute {
                 contract_addr: config.nasset_token_rewards.to_string(),
@@ -219,7 +219,7 @@ pub fn compound(deps: DepsMut, _env: Env, _info: MessageInfo) -> StdResult<Respo
             }),
             SubmsgIds::PsiClaimed.id(),
         ))
-        .add_attributes(vec![("action", "claim_psi")]));
+        .add_attributes(vec![("action", "claim_psi")]))
 }
 
 fn get_time(block: &BlockInfo) -> u64 {
@@ -233,7 +233,7 @@ pub fn query_supply(querier: &QuerierWrapper, contract_addr: &Addr) -> StdResult
         return Ok(supply);
     }
 
-    return query_supply_new(querier, contract_addr);
+    query_supply_new(querier, contract_addr)
 }
 
 fn query_supply_new(querier: &QuerierWrapper, contract_addr: &Addr) -> StdResult<Uint128> {
@@ -265,7 +265,7 @@ pub fn query_token_balance(deps: Deps, contract_addr: &Addr, account_addr: &Addr
         return balance;
     }
 
-    return Uint128::zero();
+    Uint128::zero()
 }
 
 fn query_token_balance_new(
