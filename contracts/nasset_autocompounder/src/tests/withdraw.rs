@@ -18,7 +18,7 @@ fn fail_to_withdraw_wrong_cw20() {
         msg: to_binary(&Cw20HookMsg::Withdraw {}).unwrap(),
     };
 
-    let info = mock_info("some_random_addr", &vec![]);
+    let info = mock_info("some_random_addr", &[]);
     let res = crate::contract::execute(
         sdk.deps.as_mut(),
         mock_env(),

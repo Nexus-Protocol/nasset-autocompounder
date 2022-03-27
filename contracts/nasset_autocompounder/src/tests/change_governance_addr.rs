@@ -44,7 +44,7 @@ fn success_to_change_governance_if_sender_governance() {
         };
 
         let env = mock_env();
-        let info = mock_info(&GOVERNANCE_CONTRACT_ADDR.clone(), &[]);
+        let info = mock_info(GOVERNANCE_CONTRACT_ADDR, &[]);
         crate::contract::execute(sdk.deps.as_mut(), env.clone(), info, change_gov_msg).unwrap();
 
         let gov_update_state = load_gov_update(&sdk.deps.storage).unwrap();
@@ -65,7 +65,7 @@ fn success_to_change_governance_if_sender_governance() {
         let mut env = mock_env();
         env.block.time = env.block.time.plus_seconds(20);
         let info = mock_info(&new_gov_addr, &[]);
-        crate::contract::execute(sdk.deps.as_mut(), env.clone(), info, accept_gov_msg).unwrap();
+        crate::contract::execute(sdk.deps.as_mut(), env, info, accept_gov_msg).unwrap();
 
         let gov_update_state = load_gov_update(&sdk.deps.storage);
         assert!(gov_update_state.is_err());
@@ -93,12 +93,12 @@ fn fail_to_accept_governance_if_sender_is_wrong() {
         };
 
         let env = mock_env();
-        let info = mock_info(&GOVERNANCE_CONTRACT_ADDR.clone(), &[]);
+        let info = mock_info(GOVERNANCE_CONTRACT_ADDR, &[]);
         crate::contract::execute(sdk.deps.as_mut(), env.clone(), info, change_gov_msg).unwrap();
 
         let gov_update_state = load_gov_update(&sdk.deps.storage).unwrap();
         assert_eq!(
-            Addr::unchecked(new_gov_addr.clone()),
+            Addr::unchecked(new_gov_addr),
             gov_update_state.new_governance_contract_addr
         );
         assert_eq!(
@@ -115,7 +115,7 @@ fn fail_to_accept_governance_if_sender_is_wrong() {
         env.block.time = env.block.time.plus_seconds(20);
         let info = mock_info(&random_sender, &[]);
         let gov_update_state_res =
-            crate::contract::execute(sdk.deps.as_mut(), env.clone(), info, accept_gov_msg);
+            crate::contract::execute(sdk.deps.as_mut(), env, info, accept_gov_msg);
 
         assert!(gov_update_state_res.is_err());
         let error_value = gov_update_state_res.err().unwrap();
@@ -140,7 +140,7 @@ fn too_late_to_change_governance() {
         };
 
         let env = mock_env();
-        let info = mock_info(&GOVERNANCE_CONTRACT_ADDR.clone(), &[]);
+        let info = mock_info(GOVERNANCE_CONTRACT_ADDR, &[]);
         crate::contract::execute(sdk.deps.as_mut(), env.clone(), info, change_gov_msg).unwrap();
 
         let gov_update_state = load_gov_update(&sdk.deps.storage).unwrap();
@@ -164,8 +164,7 @@ fn too_late_to_change_governance() {
             .time
             .plus_seconds(seconds_to_wait_for_accept_gov_tx + 1);
         let info = mock_info(&new_gov_addr, &[]);
-        let accept_gov_res =
-            crate::contract::execute(sdk.deps.as_mut(), env.clone(), info, accept_gov_msg);
+        let accept_gov_res = crate::contract::execute(sdk.deps.as_mut(), env, info, accept_gov_msg);
 
         assert!(accept_gov_res.is_err());
         if let StdError::GenericErr { msg } = accept_gov_res.err().unwrap() {
@@ -194,7 +193,7 @@ fn rewrite_new_gov_address_by_sending_second_update_gov_message() {
         };
 
         let env = mock_env();
-        let info = mock_info(&GOVERNANCE_CONTRACT_ADDR.clone(), &[]);
+        let info = mock_info(GOVERNANCE_CONTRACT_ADDR, &[]);
         crate::contract::execute(sdk.deps.as_mut(), env.clone(), info, change_gov_msg).unwrap();
 
         let gov_update_state = load_gov_update(&sdk.deps.storage).unwrap();
@@ -219,12 +218,12 @@ fn rewrite_new_gov_address_by_sending_second_update_gov_message() {
 
         let mut env = mock_env();
         env.block.time = env.block.time.plus_seconds(22);
-        let info = mock_info(&GOVERNANCE_CONTRACT_ADDR.clone(), &[]);
+        let info = mock_info(GOVERNANCE_CONTRACT_ADDR, &[]);
         crate::contract::execute(sdk.deps.as_mut(), env.clone(), info, change_gov_msg).unwrap();
 
         let gov_update_state = load_gov_update(&sdk.deps.storage).unwrap();
         assert_eq!(
-            Addr::unchecked(new_gov_addr.clone()),
+            Addr::unchecked(new_gov_addr),
             gov_update_state.new_governance_contract_addr
         );
         assert_eq!(

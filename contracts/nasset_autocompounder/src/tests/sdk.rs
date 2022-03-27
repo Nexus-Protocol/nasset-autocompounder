@@ -49,7 +49,7 @@ impl Sdk {
         };
 
         let mut deps = mock_dependencies(&[]);
-        Self::instantiate_nasset_autocompounder(&mut deps, msg.clone());
+        Self::instantiate_nasset_autocompounder(&mut deps, msg);
 
         Sdk {
             deps,
@@ -113,7 +113,7 @@ impl Sdk {
                 }),
             };
 
-            let res = crate::contract::reply(deps.as_mut(), mock_env(), reply_msg.clone()).unwrap();
+            let res = crate::contract::reply(deps.as_mut(), mock_env(), reply_msg).unwrap();
 
             assert_eq!(
                 res.attributes,
@@ -135,7 +135,7 @@ impl Sdk {
             msg: to_binary(&Cw20HookMsg::Deposit {}).unwrap(),
         };
 
-        let info = mock_info(NASSET_TOKEN_ADDR, &vec![]);
+        let info = mock_info(NASSET_TOKEN_ADDR, &[]);
         crate::contract::execute(
             self.deps.as_mut(),
             mock_env(),
@@ -160,7 +160,7 @@ impl Sdk {
             msg: to_binary(&Cw20HookMsg::Withdraw {}).unwrap(),
         };
 
-        let info = mock_info(AUTO_NASSET_TOKEN_ADDR, &vec![]);
+        let info = mock_info(AUTO_NASSET_TOKEN_ADDR, &[]);
         let response = crate::contract::execute(
             self.deps.as_mut(),
             mock_env(),
@@ -194,8 +194,7 @@ impl Sdk {
             }),
         };
 
-        let res =
-            crate::contract::reply(self.deps.as_mut(), mock_env(), reply_msg.clone()).unwrap();
+        let res = crate::contract::reply(self.deps.as_mut(), mock_env(), reply_msg).unwrap();
         assert_eq!(
             res.messages,
             vec![SubMsg::reply_on_success(
@@ -228,9 +227,9 @@ impl Sdk {
                 data: None,
             }),
         };
-        let response = crate::contract::reply(self.deps.as_mut(), mock_env(), reply_msg.clone());
+        let response = crate::contract::reply(self.deps.as_mut(), mock_env(), reply_msg);
         assert!(load_withdraw_action(&self.deps.storage).unwrap().is_none());
-        return response;
+        response
     }
 
     pub fn user_send_compound(&mut self, nasset_profit: Uint256) -> StdResult<Response<Empty>> {
@@ -239,7 +238,7 @@ impl Sdk {
         let psi_claimed = Uint256::from(256_000_000u128);
 
         let env = mock_env();
-        let info = mock_info(&"addr9999".to_string(), &vec![]);
+        let info = mock_info(&"addr9999".to_string(), &[]);
         let response =
             crate::contract::execute(self.deps.as_mut(), env, info, ExecuteMsg::Compound {})
                 .unwrap();
@@ -269,8 +268,7 @@ impl Sdk {
             }),
         };
 
-        let res =
-            crate::contract::reply(self.deps.as_mut(), mock_env(), reply_msg.clone()).unwrap();
+        let res = crate::contract::reply(self.deps.as_mut(), mock_env(), reply_msg).unwrap();
         assert_eq!(
             res.messages,
             vec![SubMsg::reply_on_success(
@@ -304,9 +302,9 @@ impl Sdk {
                 data: None,
             }),
         };
-        let response = crate::contract::reply(self.deps.as_mut(), mock_env(), reply_msg.clone());
+        let response = crate::contract::reply(self.deps.as_mut(), mock_env(), reply_msg);
         assert!(load_withdraw_action(&self.deps.storage).unwrap().is_none());
-        return response;
+        response
     }
 
     pub fn set_auto_nasset_supply(&mut self, value: Uint256) {
