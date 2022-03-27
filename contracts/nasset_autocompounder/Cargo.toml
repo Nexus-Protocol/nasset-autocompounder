@@ -37,16 +37,16 @@ backtraces = ["cosmwasm-std/backtraces"]
 
 # TODO: update versions
 [dependencies]
-protobuf = { version = "2.24.1", features = ["with-bytes"] }
-cw20 = { version = "0.8.1" }
-cosmwasm-std = { version = "0.16.1", features = ["iterator"] }
-cw-storage-plus = { version = "0.8.1" }
-schemars = "0.8.3"
-serde = { version = "1.0.126", default-features = false, features = ["derive"] }
+protobuf = { version = "2.27.1", features = ["with-bytes"] }
+cw20 = { version = "0.9.1" }
+cosmwasm-std = { version = "0.16.3", features = ["iterator"] }
+cw-storage-plus = { version = "0.9.1" }
+schemars = "0.8.8"
+serde = { version = "1.0.133", default-features = false, features = ["derive"] }
 cosmwasm-bignumber = "2.2.0"
 terra-cosmwasm = { version = "2.2" }
-cw20-base = { version = "0.8.1", features = ["library"] }
-cosmwasm-storage = { version = "0.16.1", features = ["iterator"] }
+cw20-base = { version = "0.9.1", features = ["library"] }
+cosmwasm-storage = { version = "0.16.3", features = ["iterator"] }
 
 [dev-dependencies]
-cosmwasm-schema = { version = "0.16.0" }
+cosmwasm-schema = { version = "0.16.6" }

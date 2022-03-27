@@ -1,0 +1,1 @@
+06c8ff2455b24bc6ab2d7cfaf0441da79c4d7b2720a5ee68973a234745f8cb2b  nasset_autocompounder.wasm
