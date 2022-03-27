@@ -51,7 +51,7 @@ pub fn instantiate(
                     "n{} autocompounder share representation",
                     msg.collateral_token_symbol
                 ),
-                symbol: format!("aun{}", msg.collateral_token_symbol),
+                symbol: format!("cn{}", msg.collateral_token_symbol),
                 decimals: 6,
                 initial_balances: vec![],
                 mint: Some(MinterResponse {
