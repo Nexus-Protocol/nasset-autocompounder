@@ -1,1 +1,1 @@
-f9954e97816571313cb8d12903e24a353677372d3392d253784ef8033e9b8844  target/wasm32-unknown-unknown/release/nasset_autocompounder.wasm
+1bd4fb06b6f0dabc4af7ef304638eb8f318d88a64497146b4164e322fd2d91c6  target/wasm32-unknown-unknown/release/nasset_autocompounder.wasm

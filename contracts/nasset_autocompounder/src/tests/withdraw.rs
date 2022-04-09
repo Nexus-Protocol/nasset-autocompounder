@@ -217,3 +217,79 @@ fn withdraw_with_profit() {
         );
     }
 }
+
+#[test]
+fn withdraw_nasset_without_rewards() {
+    let mut sdk = Sdk::init();
+
+    let initial_auto_nasset_supply: Uint256 = 10_000_000_000u128.into();
+    //first farmer come
+    let user_1_address = "addr9999".to_string();
+    let withdraw_1_amount: Uint256 = 2_000_000_000u128.into();
+    let two: Uint256 = Uint256::from(2u128);
+    {
+        sdk.set_auto_nasset_supply(initial_auto_nasset_supply);
+        sdk.set_nasset_balance(initial_auto_nasset_supply * two);
+
+        let response = sdk
+            .user_withdraw_without_nasset_rewards(&user_1_address, withdraw_1_amount.into())
+            .unwrap();
+
+        assert_eq!(
+            response.messages,
+            vec![
+                SubMsg::new(CosmosMsg::Wasm(WasmMsg::Execute {
+                    contract_addr: NASSET_TOKEN_ADDR.to_string(),
+                    msg: to_binary(&Cw20ExecuteMsg::Transfer {
+                        recipient: user_1_address.clone(),
+                        amount: (withdraw_1_amount * two).into(), // cause nasset_balance is twice auto_nasset_balance
+                    })
+                    .unwrap(),
+                    funds: vec![],
+                })),
+                SubMsg::new(CosmosMsg::Wasm(WasmMsg::Execute {
+                    contract_addr: AUTO_NASSET_TOKEN_ADDR.to_string(),
+                    msg: to_binary(&Cw20ExecuteMsg::Burn {
+                        amount: withdraw_1_amount.into(),
+                    })
+                    .unwrap(),
+                    funds: vec![],
+                })),
+            ]
+        );
+    }
+
+    //second farmer comes
+    let user_2_address = "addr6666".to_string();
+    let withdraw_2_amount: Uint256 = 6_000_000_000u128.into();
+    {
+        sdk.set_auto_nasset_supply(initial_auto_nasset_supply - withdraw_1_amount);
+        sdk.set_nasset_balance(initial_auto_nasset_supply * two - withdraw_1_amount * two);
+        let response = sdk
+            .user_withdraw_without_nasset_rewards(&user_2_address, withdraw_2_amount.into())
+            .unwrap();
+
+        assert_eq!(
+            response.messages,
+            vec![
+                SubMsg::new(CosmosMsg::Wasm(WasmMsg::Execute {
+                    contract_addr: NASSET_TOKEN_ADDR.to_string(),
+                    msg: to_binary(&Cw20ExecuteMsg::Transfer {
+                        recipient: user_2_address.clone(),
+                        amount: (withdraw_2_amount * two).into(), // cause nasset_balance is twice auto_nasset_balance
+                    })
+                    .unwrap(),
+                    funds: vec![],
+                })),
+                SubMsg::new(CosmosMsg::Wasm(WasmMsg::Execute {
+                    contract_addr: AUTO_NASSET_TOKEN_ADDR.to_string(),
+                    msg: to_binary(&Cw20ExecuteMsg::Burn {
+                        amount: withdraw_2_amount.into(),
+                    })
+                    .unwrap(),
+                    funds: vec![],
+                })),
+            ]
+        );
+    }
+}

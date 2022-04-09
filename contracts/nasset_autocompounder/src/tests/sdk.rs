@@ -171,7 +171,7 @@ impl Sdk {
 
         assert_eq!(
             response.messages,
-            vec![SubMsg::reply_on_success(
+            vec![SubMsg::reply_always(
                 CosmosMsg::Wasm(WasmMsg::Execute {
                     contract_addr: NASSET_TOKEN_REWARDS_ADDR.to_string(),
                     msg: to_binary(&NAssetTokenRewardsExecuteMsg::Anyone {
@@ -227,6 +227,55 @@ impl Sdk {
                 data: None,
             }),
         };
+        let response = crate::contract::reply(self.deps.as_mut(), mock_env(), reply_msg);
+        assert!(load_withdraw_action(&self.deps.storage).unwrap().is_none());
+        response
+    }
+
+    pub fn user_withdraw_without_nasset_rewards(
+        &mut self,
+        address: &str,
+        amount: Uint128,
+    ) -> StdResult<Response<Empty>> {
+        let psi_claimed = Uint256::zero();
+
+        let cw20_withdraw_msg = Cw20ReceiveMsg {
+            sender: address.to_string(),
+            amount,
+            msg: to_binary(&Cw20HookMsg::Withdraw {}).unwrap(),
+        };
+
+        let info = mock_info(AUTO_NASSET_TOKEN_ADDR, &[]);
+        let response = crate::contract::execute(
+            self.deps.as_mut(),
+            mock_env(),
+            info,
+            ExecuteMsg::Receive(cw20_withdraw_msg),
+        )
+        .unwrap();
+
+        assert_eq!(
+            response.messages,
+            vec![SubMsg::reply_always(
+                CosmosMsg::Wasm(WasmMsg::Execute {
+                    contract_addr: NASSET_TOKEN_REWARDS_ADDR.to_string(),
+                    msg: to_binary(&NAssetTokenRewardsExecuteMsg::Anyone {
+                        anyone_msg: NAssetTokenRewardsAnyoneMsg::ClaimRewards { recipient: None },
+                    })
+                    .unwrap(),
+                    funds: vec![],
+                }),
+                SubmsgIds::PsiClaimed.id(),
+            )]
+        );
+
+        // PSI SOLD REPLY
+        self.set_psi_balance(psi_claimed);
+        let reply_msg = Reply {
+            id: SubmsgIds::PsiClaimed.id(),
+            result: cosmwasm_std::ContractResult::Err("No rewards have accrued yet".to_string()),
+        };
+
         let response = crate::contract::reply(self.deps.as_mut(), mock_env(), reply_msg);
         assert!(load_withdraw_action(&self.deps.storage).unwrap().is_none());
         response

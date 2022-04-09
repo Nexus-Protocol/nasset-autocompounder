@@ -2,8 +2,9 @@ use crate::{
     commands, concat,
     msg::{Cw20HookMsg, NAssetTokenRewardsAnyoneMsg, NAssetTokenRewardsExecuteMsg},
     state::{
-        load_config, load_gov_update, remove_gov_update, store_config, store_gov_update,
-        store_withdraw_action, Config, GovernanceUpdateState, WithdrawAction,
+        load_config, load_gov_update, load_withdraw_action, remove_gov_update,
+        remove_withdraw_action, store_config, store_gov_update, store_withdraw_action, Config,
+        GovernanceUpdateState, WithdrawAction,
     },
     SubmsgIds,
 };
@@ -192,7 +193,7 @@ pub fn withdraw_nasset(
     )?;
 
     Ok(Response::new()
-        .add_submessage(SubMsg::reply_on_success(
+        .add_submessage(SubMsg::reply_always(
             CosmosMsg::Wasm(WasmMsg::Execute {
                 contract_addr: config.nasset_token_rewards.to_string(),
                 msg: to_binary(&NAssetTokenRewardsExecuteMsg::Anyone {
@@ -220,6 +221,56 @@ pub fn compound(deps: DepsMut, _env: Env, _info: MessageInfo) -> StdResult<Respo
             SubmsgIds::PsiClaimed.id(),
         ))
         .add_attributes(vec![("action", "claim_psi")]))
+}
+
+pub fn execute_withdraw(deps: DepsMut, env: Env) -> StdResult<Response> {
+    let config = load_config(deps.storage)?;
+    if let Some(withdraw_action) = load_withdraw_action(deps.storage)? {
+        remove_withdraw_action(deps.storage)?;
+
+        let nasset_balance: Uint256 = commands::query_token_balance(
+            deps.as_ref(),
+            &config.nasset_token,
+            &env.contract.address,
+        )
+        .into();
+
+        let auto_nasset_supply: Uint256 =
+            commands::query_supply(&deps.querier, &config.auto_nasset_token)?.into();
+
+        let nasset_to_withdraw: Uint256 = nasset_balance
+            * Uint256::from(withdraw_action.auto_nasset_amount)
+            / Decimal256::from_uint256(auto_nasset_supply);
+
+        //0. send nasset to farmer
+        //1. burn anasset
+        Ok(Response::new()
+            .add_message(CosmosMsg::Wasm(WasmMsg::Execute {
+                contract_addr: config.nasset_token.to_string(),
+                msg: to_binary(&Cw20ExecuteMsg::Transfer {
+                    recipient: withdraw_action.farmer.to_string(),
+                    amount: nasset_to_withdraw.into(),
+                })?,
+                funds: vec![],
+            }))
+            .add_message(CosmosMsg::Wasm(WasmMsg::Execute {
+                contract_addr: config.auto_nasset_token.to_string(),
+                msg: to_binary(&Cw20ExecuteMsg::Burn {
+                    amount: withdraw_action.auto_nasset_amount,
+                })?,
+                funds: vec![],
+            }))
+            .add_attributes(vec![
+                ("action", "withdraw"),
+                ("auto_nasset_amount_burned", &nasset_to_withdraw.to_string()),
+                (
+                    "nasset_amount_withdrawed",
+                    &withdraw_action.auto_nasset_amount.to_string(),
+                ),
+            ]))
+    } else {
+        Ok(Response::new())
+    }
 }
 
 fn get_time(block: &BlockInfo) -> u64 {
