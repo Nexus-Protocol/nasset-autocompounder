@@ -1,6 +1,6 @@
 [package]
 name = "nasset-autocompounder"
-version = "1.1.0"
+version = "1.2.0"
 authors = ["Nexus Labs"]
 edition = "2018"
 description = "Contract for nasset autocompounder"

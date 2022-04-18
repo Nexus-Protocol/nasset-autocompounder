@@ -51,6 +51,7 @@ pub enum Cw20HookMsg {
 pub enum QueryMsg {
     Config {},
     AutoNassetValue { amount: Uint128 },
+    NAssetValue { amount: Uint128 },
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
@@ -66,6 +67,11 @@ pub struct ConfigResponse {
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct AutoNassetValueResponse {
     pub nasset_amount: String,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
+pub struct NassetValueResponse {
+    pub cnasset_amount: String,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]

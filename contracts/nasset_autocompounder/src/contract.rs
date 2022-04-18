@@ -5,7 +5,7 @@ use cosmwasm_std::{
 
 use crate::msg::{
     AstroportCw20HookMsg, AutoNassetValueResponse, ConfigResponse, ExecuteMsg, GovernanceMsg,
-    InstantiateMsg, MigrateMsg, QueryMsg,
+    InstantiateMsg, MigrateMsg, NassetValueResponse, QueryMsg,
 };
 use crate::reply_response::MsgInstantiateContractResponse;
 use crate::state::Config;
@@ -166,6 +166,7 @@ pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
         QueryMsg::AutoNassetValue { amount } => {
             to_binary(&query_auto_nasset_value(deps, env, amount)?)
         }
+        QueryMsg::NAssetValue { amount } => to_binary(&query_nasset_value(deps, env, amount)?),
     }
 }
 
@@ -199,6 +200,23 @@ pub fn query_auto_nasset_value(
 
     Ok(AutoNassetValueResponse {
         nasset_amount: nasset_amount.into(),
+    })
+}
+
+pub fn query_nasset_value(deps: Deps, env: Env, amount: Uint128) -> StdResult<NassetValueResponse> {
+    let config: Config = load_config(deps.storage)?;
+
+    let nasset_balance: Uint256 =
+        commands::query_token_balance(deps, &config.nasset_token, &env.contract.address).into();
+
+    let auto_nasset_supply: Uint256 =
+        commands::query_supply(&deps.querier, &config.auto_nasset_token)?.into();
+
+    let cnasset_amount: Uint256 =
+        auto_nasset_supply * Uint256::from(amount) / Decimal256::from_uint256(nasset_balance);
+
+    Ok(NassetValueResponse {
+        cnasset_amount: cnasset_amount.into(),
     })
 }
 

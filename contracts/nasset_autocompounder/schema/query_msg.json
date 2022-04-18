@@ -1,7 +1,7 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "title": "QueryMsg",
-  "anyOf": [
+  "oneOf": [
     {
       "type": "object",
       "required": [
@@ -21,6 +21,26 @@
       ],
       "properties": {
         "auto_nasset_value": {
+          "type": "object",
+          "required": [
+            "amount"
+          ],
+          "properties": {
+            "amount": {
+              "$ref": "#/definitions/Uint128"
+            }
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "required": [
+        "n_asset_value"
+      ],
+      "properties": {
+        "n_asset_value": {
           "type": "object",
           "required": [
             "amount"
