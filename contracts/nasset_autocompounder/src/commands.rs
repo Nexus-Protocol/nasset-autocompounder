@@ -262,11 +262,11 @@ pub fn execute_withdraw(deps: DepsMut, env: Env) -> StdResult<Response> {
             }))
             .add_attributes(vec![
                 ("action", "withdraw"),
-                ("auto_nasset_amount_burned", &nasset_to_withdraw.to_string()),
                 (
-                    "nasset_amount_withdrawed",
+                    "auto_nasset_amount_burned",
                     &withdraw_action.auto_nasset_amount.to_string(),
                 ),
+                ("nasset_amount_withdrawed", &nasset_to_withdraw.to_string()),
             ]))
     } else {
         Ok(Response::new())
